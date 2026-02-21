@@ -1,56 +1,109 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import { IsoGuideModal } from "@/components/IsoGuideModal";
+
 export default function Home() {
+  const { t } = useLanguage();
+  const router = useRouter();
+  const [isoModalOpen, setIsoModalOpen] = useState(false);
+
   return (
-    <>
-      {/* Sidebar Empty State */}
-      <aside className="w-72 bg-white border-r border-[#e5e7eb] flex flex-col items-center pt-20 px-6 gap-6 relative z-10 hidden md:flex">
-        <div className="p-6 rounded-full bg-[#f6f7f8] border-2 border-dashed border-gray-200">
-          <span className="material-symbols-outlined text-4xl text-gray-300">menu_open</span>
-        </div>
-        <div className="text-center space-y-2">
-          <h3 className="text-[#111418] text-base font-bold">No Menu Selected</h3>
-          <p className="text-gray-500 text-sm leading-relaxed">Select a menu from the top tabs to view detailed options and tools.</p>
-        </div>
-      </aside>
+    <main className="flex-1 flex flex-col items-center justify-center p-8 bg-[#f6f7f8] dark:bg-[#0f172a] overflow-y-auto transition-colors duration-300">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-[0.03]">
+        <span className="material-symbols-outlined text-[600px] text-gray-900 dark:text-slate-100 select-none">
+          precision_manufacturing
+        </span>
+      </div>
 
-      {/* Main Dashboard Area */}
-      <main className="flex-1 relative flex flex-col items-center justify-center p-8 bg-[#f6f7f8] overflow-hidden">
-        {/* Watermark Background */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-[0.03]">
-          <span className="material-symbols-outlined text-[600px] text-gray-900 select-none">precision_manufacturing</span>
+      <div className="relative z-10 w-full max-w-4xl space-y-12">
+        <div className="text-center space-y-4">
+          <h1 className="text-3xl sm:text-4xl font-black text-[#111418] dark:text-slate-100 tracking-tight">
+            {t("home.title")}
+          </h1>
+          <p className="text-lg text-gray-500 dark:text-slate-400">
+            {t("home.subtitle")}
+          </p>
         </div>
 
-        {/* Hero Content */}
-        <div className="relative z-10 max-w-2xl w-full text-center space-y-8 animate-fade-in">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold uppercase tracking-wider mb-4">
-              <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
-              System Operational
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link
+            href="/fdc"
+            className="group flex flex-col p-6 rounded-2xl border-2 border-[#137fec]/20 dark:border-[#137fec]/30 bg-white dark:bg-slate-900 hover:border-[#137fec] hover:shadow-xl hover:shadow-[#137fec]/10 transition-all duration-300"
+          >
+            <div className="flex items-center justify-center size-14 rounded-xl bg-[#137fec]/10 dark:bg-[#137fec]/20 text-[#137fec] mb-4 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-3xl">monitoring</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-[#111418] tracking-tight leading-tight">
-              Welcome to <span className="text-[#137fec]">MES Dashboard</span>
-            </h1>
-            <p className="text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
-              Access your quality management tools through the navigation tabs above. Select a module to begin operations.
+            <h2 className="text-lg font-bold text-[#111418] dark:text-slate-100 mb-2">
+              {t("home.fdcTitle")}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 leading-relaxed flex-1">
+              {t("home.fdcDesc")}
             </p>
-          </div>
+            <span className="mt-3 inline-flex items-center gap-2 text-[#137fec] font-medium text-sm group-hover:gap-3 transition-all">
+              {t("home.enter")}
+              <span className="material-symbols-outlined text-base">arrow_forward</span>
+            </span>
+          </Link>
 
-          {/* Quick Action Placeholders */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-            <div className="flex flex-col items-center p-4 rounded-xl border border-gray-200 bg-white/50 backdrop-blur-sm">
-              <span className="material-symbols-outlined text-3xl text-[#137fec] mb-2">analytics</span>
-              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Real-time Data</span>
+          <Link
+            href="/management"
+            className="group flex flex-col p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-500 hover:shadow-xl transition-all duration-300"
+          >
+            <div className="flex items-center justify-center size-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 mb-4 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-3xl">description</span>
             </div>
-            <div className="flex flex-col items-center p-4 rounded-xl border border-gray-200 bg-white/50 backdrop-blur-sm">
-              <span className="material-symbols-outlined text-3xl text-[#137fec] mb-2">fact_check</span>
-              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Quality Checks</span>
+            <h2 className="text-lg font-bold text-[#111418] dark:text-slate-100 mb-2">
+              {t("home.managementTitle")}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 leading-relaxed flex-1">
+              {t("home.managementDesc")}
+            </p>
+            <span className="mt-3 inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium text-sm group-hover:gap-3 transition-all">
+              {t("home.enter")}
+              <span className="material-symbols-outlined text-base">arrow_forward</span>
+            </span>
+          </Link>
+
+          <Link
+            href="/mes"
+            title="준비 중입니다"
+            className="flex flex-col p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 opacity-80 text-left hover:opacity-90 transition-opacity relative"
+          >
+            <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+              미구현
+            </span>
+            <div className="flex items-center justify-center size-14 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-500 mb-4">
+              <span className="material-symbols-outlined text-3xl">factory</span>
             </div>
-            <div className="flex flex-col items-center p-4 rounded-xl border border-gray-200 bg-white/50 backdrop-blur-sm">
-              <span className="material-symbols-outlined text-3xl text-[#137fec] mb-2">settings_suggest</span>
-              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Optimization</span>
-            </div>
-          </div>
+            <h2 className="text-lg font-bold text-slate-600 dark:text-slate-400 mb-2">
+              {t("home.mesTitle")}
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-500 leading-relaxed flex-1">
+              {t("home.mesDesc")}
+            </p>
+            <span className="mt-3 inline-flex items-center gap-2 text-slate-500 dark:text-slate-500 text-sm">
+              준비 중입니다
+            </span>
+          </Link>
         </div>
-      </main>
-    </>
+
+        <div className="flex justify-center pt-4">
+          <button
+            type="button"
+            onClick={() => setIsoModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-colors text-sm font-medium"
+          >
+            <span className="material-symbols-outlined text-lg">menu_book</span>
+            {t("home.guidelineButton")}
+          </button>
+        </div>
+      </div>
+
+      <IsoGuideModal open={isoModalOpen} onClose={() => setIsoModalOpen(false)} onNavigate={(url) => { setIsoModalOpen(false); router.push(url); }} />
+    </main>
   );
 }

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e40af;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.7" />
+    </linearGradient>
+    <linearGradient id="face" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e2e8f0" />
+      <stop offset="100%" style="stop-color:#cbd5e1" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#bg)"/>
+  <!-- Abstract silhouette: oval head -->
+  <ellipse cx="200" cy="155" rx="75" ry="85" fill="url(#face)" opacity="0.95"/>
+  <!-- Shoulders -->
+  <path d="M80 280 Q200 320 320 280 L320 400 L80 400 Z" fill="url(#face)" opacity="0.9"/>
+  <!-- Collar / suit hint -->
+  <path d="M165 250 L200 280 L235 250 L235 400 L165 400 Z" fill="#334155" opacity="0.6"/>
+  <!-- Initials badge -->
+  <text x="200" y="370" text-anchor="middle" fill="white" font-family="system-ui,sans-serif" font-size="14" font-weight="600" opacity="0.9">CEO</text>
+</svg>

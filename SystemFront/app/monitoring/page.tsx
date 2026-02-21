@@ -204,7 +204,7 @@ export default function MonitoringPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-[#111418]">{selectedDevice.toUpperCase()} 모니터링</h2>
-                <p className="text-gray-500">실시간 센서 데이터 및 상태 정보</p>
+                <p className="text-gray-500">기간별 설비 상태 시계열 및 최신 상태 정보</p>
               </div>
               {latestData && (
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${getStateColor(latestData.state)} text-white`}>

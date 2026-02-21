@@ -1,12 +1,25 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (html.dark) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f6f7f8;
   --foreground: #111418;
   --primary: #137fec;
   --surface-light: #ffffff;
-  --surface-dark: #182635;
-  --background-dark: #101922;
+  --surface-dark: #0f172a;
+  --background-dark: #0f172a;
+  --foreground-dark: #f1f5f9;
+  --panel-bg: #ffffff;
+  --panel-border: #e2e8f0;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --panel-bg: #0f172a;
+  --panel-border: #334155;
 }
 
 @theme inline {
@@ -17,17 +30,27 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #101922;
-    --foreground: #ededed;
-  }
+/* 스크롤바 토글로 인한 가로폭 변화 방지 */
+html {
+  scrollbar-gutter: stable;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: 'Inter', Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* 스크롤 영역: 스크롤바 토글 시 가로폭 변화 방지 (modern browsers) */
+.scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+/* fallback: scrollbar-gutter 미지원 브라우저에서는 항상 스크롤바 공간 확보 */
+@supports not (scrollbar-gutter: stable) {
+  .scrollbar-gutter-stable {
+    overflow-y: scroll !important;
+  }
 }
 
 /* Scrollbar hide */

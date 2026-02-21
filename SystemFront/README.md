@@ -14,7 +14,16 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+접속 주소: **http://localhost:3000**
+
+브라우저에서 위 주소로 접속하거나, Cursor 안에서 `Ctrl+Shift+P` → "Simple Browser: Show" 입력 후 URL에 `http://localhost:3000` 입력. 자세한 내용은 [VIEW_IN_CURSOR.md](./VIEW_IN_CURSOR.md) 참고. 포트 관련 진단은 [docs/DEV_NOTE.md](./docs/DEV_NOTE.md) 참고.
+
+### Tableau Public 임베딩 (CSP)
+
+운용 > 공정관리 탭의 OHT 설비 통합 관제판은 Tableau Public iframe을 사용합니다. 앱에 Content-Security-Policy가 적용되어 있다면 최소한 아래를 허용해야 합니다.
+
+- `frame-src` (또는 `child-src`): `https://public.tableau.com`
+- `img-src`: `https://public.tableau.com`
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
