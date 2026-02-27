@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* Tailwind v4: class 기반 다크모드 (html.dark 일 때만 dark: 적용) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f6f7f8;
+  --foreground: #111418;
+  --primary: #137fec;
+  --surface-light: #ffffff;
+  --surface-dark: #182635;
+  --background-dark: #101922;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* 다크모드: html.dark 시 적용 */
+html.dark {
+  --background: #101922;
+  --foreground: #ededed;
+  --surface: #182635;
+  --border: #2d3d4f;
+}
+html.dark body {
+  background: var(--background);
+  color: var(--foreground);
+}
+html.dark .header-bar {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark .nav-bar {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark .nav-bar a span,
+html.dark .header-bar .text-primary {
+  color: var(--foreground);
+}
+html.dark .header-bar .text-muted,
+html.dark .nav-bar a span {
+  color: #9ca3af;
+}
+html.dark .header-bar .bg-muted {
+  background: #1e293b;
+}
+html.dark .header-bar .bg-muted:hover {
+  background: #334155;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+}
+
+/* Scrollbar hide */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
