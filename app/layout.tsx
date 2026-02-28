@@ -34,7 +34,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} antialiased bg-[#f6f7f8] text-[#111418] font-sans min-h-screen flex flex-col dark:bg-[#101922] dark:text-[#ededed]`}>
         {/* Top App Bar */}
-        <header className="header-bar flex items-center justify-between whitespace-nowrap border-b border-solid border-[#e5e7eb] bg-white px-6 py-3 z-20 shadow-sm h-16 dark:bg-[#182635] dark:border-[#2d3d4f]">
+        <header className="header-bar sticky top-0 flex items-center justify-between whitespace-nowrap border-b border-solid border-[#e5e7eb] bg-white px-6 py-3 z-20 shadow-sm h-16 dark:bg-[#182635] dark:border-[#2d3d4f]">
           <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
             <div className="size-8 flex items-center justify-center text-[#137fec] bg-[#137fec]/10 rounded-lg">
               <span className="material-symbols-outlined text-2xl">precision_manufacturing</span>

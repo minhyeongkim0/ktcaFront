@@ -1542,13 +1542,23 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
   const tabContentClass = "w-full min-h-full flex flex-col items-stretch space-y-6";
 
   if (tab === "monitoring") {
+    const monitoringTitle =
+      equipmentType === "AGV" ? "AGV 상태 시계열 (센서값)" : "OHT 상태 시계열 (센서값)";
+    const monitoringUrl =
+      equipmentType === "AGV"
+        ? "https://public.tableau.com/views/AGV_BI_state/AGV?:embed=true&:showVizHome=no&:language=ko-KR&:toolbar=yes&:tabs=no&:display_count=yes"
+        : "https://public.tableau.com/views/OHT_BI_state/OHT?:embed=true&:showVizHome=no&:language=ko-KR&:toolbar=yes&:tabs=no&:display_count=yes";
+
     return (
       <div className={tabContentClass}>
-        <SectionCard title="실시간 센서 시계열" icon="show_chart">
-          <div className="h-64 flex items-center justify-center rounded-lg bg-gray-50 border-2 border-dashed border-gray-200 text-gray-400">
-            <span className="material-symbols-outlined text-4xl mr-2">bar_chart</span>
-            시계열 차트 영역 (Tableau/Chart)
-          </div>
+        <SectionCard title={monitoringTitle} icon="show_chart">
+          <TableauEmbed
+            url={monitoringUrl}
+            height={900}
+            hideTabs
+            hideToolbar={false}
+            className="bg-gray-50 dark:bg-[#1e293b]"
+          />
         </SectionCard>
         <SectionCard title="최근 장비 로그" icon="list">
           {/* 상단: 과거 로그 더 보기 표시 */}
@@ -1635,35 +1645,25 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
     const getDelayMinutes = (occurredTime: string) => Math.max(0, Math.floor((now - new Date(occurredTime).getTime()) / 60000));
     const levelClass = (level: string) =>
       level === "경고" ? "text-amber-600 dark:text-amber-400" : level === "해결" ? "text-green-600 dark:text-green-400" : "text-gray-600 dark:text-gray-400";
+
+    const alarmParetoTitle =
+      equipmentType === "AGV" ? "AGV 이상 상태" : "OHT 이상 상태";
+    const alarmParetoUrl =
+      equipmentType === "AGV"
+        ? "https://public.tableau.com/views/AGV_BI_risk/AGV_3?:embed=true&:showVizHome=no&:language=ko-KR&:toolbar=yes&:tabs=no&:display_count=yes"
+        : "https://public.tableau.com/views/OHT_BI_risk/OHT_3?:embed=true&:showVizHome=no&:language=ko-KR&:toolbar=yes&:tabs=no&:display_count=yes";
+
     return (
       <div className={tabContentClass}>
-        <SectionCard title="알람 파레토 분석" icon="bar_chart">
+        <SectionCard title={alarmParetoTitle} icon="bar_chart">
           <TableauEmbed
-            url={TABLEAU_ALARM_URLS.alarmPareto}
-            height={420}
-            hideToolbar
+            url={alarmParetoUrl}
+            height={900}
             hideTabs
-            filterParams={{ EquipmentType: equipmentType }}
+            hideToolbar={false}
             placeholder="알람 파레토 분석 태블로 URL을 설정해 주세요."
             className="w-full"
           />
-        </SectionCard>
-        <SectionCard title="주요 센서 상관관계" icon="scatter_plot">
-          <TableauEmbed
-            url={TABLEAU_ALARM_URLS.sensorCorr}
-            height={420}
-            hideToolbar
-            hideTabs
-            filterParams={{ EquipmentType: equipmentType }}
-            placeholder="주요 센서 상관관계 태블로 URL을 설정해 주세요."
-            className="w-full"
-          />
-        </SectionCard>
-
-        <SectionCard title="알람 Top 원인" icon="insights">
-          <div className="h-48 flex items-center justify-center rounded-lg bg-gray-50 dark:bg-[#1e293b] border-2 border-dashed border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500">
-            막대/파이 차트 영역
-          </div>
         </SectionCard>
         <SectionCard title="최근 알람 리스트" icon="list">
           {/* 날짜 선택 + 설명 */}
@@ -1793,24 +1793,23 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
   }
 
   if (tab === "prediction") {
+    const featureImportanceTitle =
+      equipmentType === "AGV" ? "AGV 데이터 분석 및 예측 모델 현황" : "OHT 데이터 분석 및 예측 모델 현황";
+    const featureImportanceUrl =
+      equipmentType === "AGV"
+        ? "https://public.tableau.com/views/AGV_BI_data/sheet8?:embed=true&:showVizHome=no&:language=ko-KR&:toolbar=yes&:tabs=no&:display_count=yes"
+        : "https://public.tableau.com/views/OHT_BI_data/sheet9?:embed=true&:showVizHome=no&:language=ko-KR&:toolbar=yes&:tabs=no&:display_count=yes";
     return (
       <div className={tabContentClass}>
-        <SectionCard title="핵심 피처 기여도 (Feature Importance)" icon="bar_chart">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">태블로에서 피처 기여도를 확인합니다. URL 설정 시 여기에 임베드됩니다.</p>
+        <SectionCard title={featureImportanceTitle} icon="bar_chart">
           <TableauEmbed
-            url={TABLEAU_FEATURE_IMPORTANCE_URL}
-            height={420}
-            hideToolbar
+            url={featureImportanceUrl}
+            height={900}
             hideTabs
-            filterParams={{ EquipmentType: equipmentType }}
-            placeholder="핵심 피처 기여도 태블로 URL을 설정해 주세요. (NEXT_PUBLIC_TABLEAU_FEATURE_IMPORTANCE_URL)"
+            hideToolbar={false}
+            placeholder="핵심 피처 기여도 태블로 URL을 설정해 주세요."
             className="w-full"
           />
-        </SectionCard>
-        <SectionCard title="예측 결과 (위험도)" icon="show_chart">
-          <div className="h-56 flex items-center justify-center rounded-lg bg-gray-50 dark:bg-[#1e293b] border-2 border-dashed border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500">
-            예측 위험도 시각화
-          </div>
         </SectionCard>
         <SectionCard title="모델 설명" icon="description">
           <p className="text-sm text-gray-600 dark:text-gray-400">

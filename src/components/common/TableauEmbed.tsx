@@ -1,26 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-const TABLEAU_SCRIPT_ID = "tableau-js-api";
-const TABLEAU_SCRIPT_URL = "https://public.tableau.com/javascripts/api/tableau-2.min.js";
-
-declare global {
-  interface Window {
-    tableau?: {
-      Viz: new (
-        containerDiv: HTMLElement,
-        url: string,
-        options: { hideTabs?: boolean; hideToolbar?: boolean; width?: string; height?: string }
-      ) => { dispose: () => void };
-    };
-  }
-}
+import { useRef, useState } from "react";
 
 export interface TableauEmbedProps {
   /** 태블로 뷰 URL (나중에 변경 가능) */
   url?: string;
-  /** 높이 (기본 420px) */
+  /** 높이 (기본 560px) */
   height?: string | number;
   /** 툴바 숨김 (기본 true) */
   hideToolbar?: boolean;
@@ -33,27 +18,6 @@ export interface TableauEmbedProps {
   className?: string;
 }
 
-function loadTableauScript(): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.tableau) return Promise.resolve();
-  const existing = document.getElementById(TABLEAU_SCRIPT_ID);
-  if (existing) {
-    return new Promise((resolve) => {
-      if (window.tableau) resolve();
-      else existing.addEventListener("load", () => resolve());
-    });
-  }
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.id = TABLEAU_SCRIPT_ID;
-    script.src = TABLEAU_SCRIPT_URL;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Tableau script failed to load"));
-    document.head.appendChild(script);
-  });
-}
-
 function buildUrlWithParams(url: string, filterParams?: Record<string, string>): string {
   if (!url?.trim()) return url;
   if (!filterParams || Object.keys(filterParams).length === 0) return url.trim();
@@ -63,60 +27,17 @@ function buildUrlWithParams(url: string, filterParams?: Record<string, string>):
 
 export default function TableauEmbed({
   url,
-  height = "420px",
+  height = "560px",
   hideToolbar = true,
   hideTabs = true,
   placeholder = "태블로 URL을 설정해 주세요.",
   filterParams,
   className = "",
 }: TableauEmbedProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const vizRef = useRef<{ dispose: () => void } | null>(null);
-  const [scriptReady, setScriptReady] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const effectiveUrl = buildUrlWithParams(url ?? "", filterParams);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadError(null);
-    loadTableauScript()
-      .then(() => {
-        if (!cancelled) setScriptReady(true);
-      })
-      .catch((e) => {
-        if (!cancelled) setLoadError(e?.message ?? "스크립트 로드 실패");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!scriptReady || !effectiveUrl || !containerRef.current || typeof window === "undefined" || !window.tableau) return;
-    const container = containerRef.current;
-    container.innerHTML = "";
-    try {
-      const viz = new window.tableau.Viz(container, effectiveUrl, {
-        hideTabs,
-        hideToolbar,
-        width: "100%",
-        height: typeof height === "number" ? `${height}px` : height,
-      });
-      vizRef.current = viz;
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Viz 초기화 실패");
-    }
-    return () => {
-      try {
-        if (vizRef.current) {
-          vizRef.current.dispose();
-          vizRef.current = null;
-        }
-      } catch {
-        // ignore dispose errors
-      }
-    };
-  }, [scriptReady, effectiveUrl, hideTabs, hideToolbar, height]);
 
   const h = typeof height === "number" ? `${height}px` : height;
   const noUrl = !url?.trim();
@@ -145,9 +66,23 @@ export default function TableauEmbed({
 
   return (
     <div
-      ref={containerRef}
-      className={`rounded-lg overflow-hidden w-full ${className}`}
+      className={`relative rounded-lg overflow-hidden w-full ${className}`}
       style={{ width: "100%", minHeight: h }}
-    />
+    >
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1e293b] text-gray-400 dark:text-gray-500 text-sm z-10">
+          차트 로딩 중…
+        </div>
+      )}
+      <iframe
+        ref={iframeRef}
+        src={effectiveUrl}
+        title="Tableau chart"
+        className="w-full h-full"
+        style={{ border: "none", minHeight: h }}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoadError("차트를 불러오지 못했습니다.")}
+      />
+    </div>
   );
 }

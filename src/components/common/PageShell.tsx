@@ -29,7 +29,7 @@ export default function PageShell({
   children,
 }: PageShellProps) {
   return (
-    <main className="flex-1 min-h-0 overflow-y-scroll bg-[#f6f7f8] dark:bg-[#101922] w-full">
+    <main className="flex-1 min-h-0 bg-[#f6f7f8] dark:bg-[#101922] w-full">
       <div className="w-full min-w-0 px-3 py-4 md:px-5 md:py-5 space-y-4">
         {/* Breadcrumb - compact */}
         {breadcrumb.length > 0 && (
@@ -77,9 +77,9 @@ export default function PageShell({
           ))}
         </div>
 
-        {/* Content - 고정 높이로 탭 전환 시 흔들림 방지, 스크롤바 항상 표시 */}
-        <div className="w-full min-w-0 overflow-hidden bg-white dark:bg-[#182635] rounded-b-lg rounded-tr-lg border border-gray-200 dark:border-gray-600 border-t-0 shadow-sm h-[65vh] flex flex-col">
-          <div className="flex-1 min-h-0 overflow-x-hidden overflow-y-scroll px-4 md:px-6 py-4 md:py-6">
+        {/* Content - 전체 페이지 스크롤 시 헤더가 위로 사라지도록 고정 높이 제거 */}
+        <div className="w-full min-w-0 overflow-hidden bg-white dark:bg-[#182635] rounded-b-lg rounded-tr-lg border border-gray-200 dark:border-gray-600 border-t-0 shadow-sm flex flex-col">
+          <div className="flex-1 min-h-0 overflow-x-hidden px-4 md:px-6 py-4 md:py-6">
             <div className="w-full max-w-[1200px] min-w-0 mx-auto flex flex-col items-stretch" style={{ width: "100%", maxWidth: "1200px" }}>
               {children}
             </div>
