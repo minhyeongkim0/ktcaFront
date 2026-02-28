@@ -96,11 +96,24 @@ export default function HeaderActions() {
   return (
     <>
       <div className="hidden md:flex gap-3 items-center">
-        {/* 시계 */}
-        <div className="flex items-center justify-center rounded-lg h-9 px-4 bg-[#f6f7f8] dark:bg-[#1e293b] border border-transparent dark:border-gray-600 text-sm font-bold text-gray-600 dark:text-gray-300">
-          <span className="material-symbols-outlined text-lg mr-2 text-[#137fec]">schedule</span>
-          <span id="clock" suppressHydrationWarning>--:--:--</span>
+        {/* 시계 + 챗봇 버튼 */}
+        <div className="flex items-center rounded-lg h-9 bg-[#f6f7f8] dark:bg-[#1e293b] border border-transparent dark:border-gray-600 overflow-hidden">
+          <div className="flex items-center px-4 text-sm font-bold text-gray-600 dark:text-gray-300">
+            <span className="material-symbols-outlined text-lg mr-2 text-[#137fec]">schedule</span>
+            <span id="clock" suppressHydrationWarning>--:--:--</span>
+          </div>
+          <div className="w-px h-5 bg-gray-300 dark:bg-gray-600" />
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="flex items-center gap-1 px-3 h-full text-sm font-medium text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+            aria-label="챗봇"
+          >
+            <span className="material-symbols-outlined text-[17px]">chat</span>
+            챗봇
+          </button>
         </div>
+        <ChatbotPanel open={chatOpen} onClose={() => setChatOpen(false)} />
 
         {/* 다크모드 토글 */}
         <button
@@ -186,16 +199,6 @@ export default function HeaderActions() {
           )}
         </div>
 
-        {/* 챗봇 버튼 */}
-        <button
-          type="button"
-          onClick={() => setChatOpen(true)}
-          className="flex items-center justify-center rounded-lg size-9 bg-[#eff6ff] dark:bg-[#1e3a5f] hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-200 transition-colors"
-          aria-label="챗봇"
-        >
-          <span className="material-symbols-outlined text-[22px]">smart_toy</span>
-        </button>
-        <ChatbotPanel open={chatOpen} onClose={() => setChatOpen(false)} />
 
         {/* 알람(알림) 버튼 + 드롭다운 — 오버레이 없이 바깥 클릭으로만 닫기 */}
         <div className="relative" ref={alarmRef}>

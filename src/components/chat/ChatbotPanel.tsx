@@ -77,7 +77,7 @@ export default function ChatbotPanel({ open, onClose }: { open: boolean; onClose
         onClick={onClose}
       />
       <div
-        className="fixed right-4 bottom-4 z-50 w-full max-w-md h-[min(32rem,85vh)] bg-white dark:bg-[#182635] rounded-t-2xl rounded-l-2xl border border-gray-200 dark:border-gray-600 shadow-xl flex flex-col"
+        className="fixed right-4 bottom-4 z-50 w-full max-w-md h-[min(52rem,90vh)] bg-white dark:bg-[#182635] rounded-t-2xl rounded-l-2xl border border-gray-200 dark:border-gray-600 shadow-xl flex flex-col"
         role="dialog"
         aria-labelledby="chatbot-title"
       >
@@ -143,7 +143,7 @@ export default function ChatbotPanel({ open, onClose }: { open: boolean; onClose
           {loading && (
             <div className="flex justify-start">
               <div className="rounded-2xl rounded-bl-md px-4 py-2.5 bg-gray-100 dark:bg-[#1e293b] text-gray-500 dark:text-gray-400 text-sm">
-                선배님이 생각 중입니다...
+                생각중입니다...
               </div>
             </div>
           )}

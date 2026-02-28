@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, type ReactNode, type UIEvent } from "react";
+import { Suspense, useState, useEffect, useRef, type ReactNode, type UIEvent } from "react";
 
 function useIsDark() {
   const [isDark, setIsDark] = useState(false);
@@ -571,14 +571,14 @@ const CAUSE_4M_OPTIONS = ["작업자", "설비", "재료", "공법"] as const;
 type Cause4M = (typeof CAUSE_4M_OPTIONS)[number];
 
 const FOUR_M_CHANGE_TYPES = [
-  { value: "Man", label: "작업자 교체" },
-  { value: "Material", label: "자재 변경" },
-  { value: "Method", label: "방법 변경" },
-  { value: "Machine", label: "설비/기계 변경" },
+  { value: "작업자변경", label: "작업자 변경" },
+  { value: "자재변경",   label: "자재 변경" },
+  { value: "방법변경",   label: "방법 변경" },
+  { value: "설비기계변경", label: "설비/기계 변경" },
 ] as const;
 type FourMChangeType = (typeof FOUR_M_CHANGE_TYPES)[number]["value"];
 
-type FourMChangeLog = { id: string; time: string; type: FourMChangeType; content: string };
+type FourMChangeLog = { id: number; change_type: FourMChangeType; content: string; created_at: string };
 
 type CorrectiveLog = {
   id: number;
@@ -869,8 +869,99 @@ function AddActionModal({
   const [completedAt, setCompletedAt] = useState("");
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState<string | null>(null);
+  const [sensorType, setSensorType] = useState("");
+  const [actualBefore, setActualBefore] = useState<string>("");
+  const [actualAfter, setActualAfter]   = useState<string>("");
+  const [suspicious, setSuspicious] = useState(false); // 의심 수치 확인 여부
 
   const canSave = deviceId.trim().length > 0 && desc.trim().length > 0;
+
+  // ── 가이드 목표치 룩업테이블 ──
+  type GuideTarget = { target: number; unit: string; label: string };
+  const GUIDE_TARGETS: Record<string, Record<string, GuideTarget>> = {
+    AGV: {
+      NTC:        { target: 40,    unit: "°C", label: "시스템 온도 (NTC)" },
+      PM10:       { target: 40,    unit: "",   label: "미세먼지 PM10" },
+      PM2_5:      { target: 27.13, unit: "",   label: "미세먼지 PM2.5" },
+      CT1:        { target: 1.86,  unit: "A",  label: "전류 CT1" },
+      CT2:        { target: 72.10, unit: "A",  label: "전류 CT2" },
+      CT3:        { target: 49.91, unit: "A",  label: "전류 CT3" },
+      CT4:        { target: 19.65, unit: "A",  label: "전류 CT4" },
+      ir_temp_max:{ target: 50.4,  unit: "°C", label: "소자 온도 (ir_temp_max)" },
+    },
+    OHT: {
+      NTC:        { target: 40, unit: "°C", label: "시스템 온도 (NTC)" },
+      CT2:        { target: 2,  unit: "A",  label: "전류 CT2" },
+      ir_temp_max:{ target: 40, unit: "°C", label: "소자 온도 (ir_temp_max)" },
+    },
+  };
+  const sensorOptions = Object.keys(GUIDE_TARGETS[devType] ?? {});
+  const guideTarget: GuideTarget | null = sensorType ? (GUIDE_TARGETS[devType]?.[sensorType] ?? null) : null;
+
+  // ── 가이드 기준 수치 경고 ──
+  const beforeNum = beforeState !== "" ? Number(beforeState) : null;
+  const afterNum  = afterState  !== "" ? Number(afterState)  : null;
+  const actualBeforeNum = actualBefore !== "" ? Number(actualBefore) : null;
+  const actualAfterNum  = actualAfter  !== "" ? Number(actualAfter)  : null;
+  const stateLabel: Record<number, string> = { 0: "정상", 1: "주의", 2: "경고", 3: "위험" };
+
+  const guideWarnings: string[] = [];
+  // 상태 레벨 기반 체크
+  if (beforeNum !== null && afterNum !== null) {
+    if (afterNum >= beforeNum && beforeNum >= 1) {
+      guideWarnings.push(`조치 전(${stateLabel[beforeNum]}) → 조치 후(${stateLabel[afterNum]}) 상태가 개선되지 않았습니다.`);
+    }
+    if (afterNum >= 2) {
+      guideWarnings.push(`조치 후에도 ${stateLabel[afterNum]} 상태입니다. 가이드 기준 수치를 재확인해 주세요.`);
+    }
+    if (beforeNum === 3 && afterNum === 0) {
+      guideWarnings.push(`위험(3) → 정상(0) 한 번에 전환은 드문 경우입니다. 실제 수치와 다를 수 있으니 다시 확인해 주세요.`);
+    }
+  }
+  // 실제 센서 수치 기반 체크
+  if (guideTarget && actualAfterNum !== null) {
+    if (actualAfterNum > guideTarget.target) {
+      const diff = (actualAfterNum - guideTarget.target).toFixed(1);
+      guideWarnings.push(
+        `${guideTarget.label} 가이드 목표치(${guideTarget.target}${guideTarget.unit})보다 ` +
+        `${diff}${guideTarget.unit} 높습니다. (입력값: ${actualAfterNum}${guideTarget.unit})`
+      );
+    }
+  }
+  if (guideTarget && actualBeforeNum !== null && actualAfterNum !== null && actualAfterNum >= actualBeforeNum) {
+    guideWarnings.push(`실제 수치가 조치 전(${actualBeforeNum}) → 조치 후(${actualAfterNum})로 개선되지 않았습니다.`);
+  }
+
+  // ── 물리적으로 의심스러운 수치 (확인 버튼 필요) ──
+  const isTempSensor = ["NTC", "ir_temp_max"].includes(sensorType);
+  const suspiciousReasons: string[] = [];
+  if (guideTarget && actualBeforeNum !== null && actualAfterNum !== null) {
+    const drop = actualBeforeNum - actualAfterNum;
+    // 30°C / 30A 이상 급감
+    if (drop >= 30) {
+      suspiciousReasons.push(
+        `${drop.toFixed(1)}${guideTarget.unit} 급감 — 단시간에 발생하기 어려운 변화입니다.`
+      );
+    }
+    // 온도 센서가 0°C 이하
+    if (isTempSensor && actualAfterNum <= 0) {
+      suspiciousReasons.push(
+        `온도가 ${actualAfterNum}°C — 상온 이하로 내려가기 어렵습니다.`
+      );
+    }
+    // 가이드 목표보다 50% 이상 낮음 (온도 0 제외)
+    if (actualAfterNum > 0 && actualAfterNum < guideTarget.target * 0.5) {
+      suspiciousReasons.push(
+        `가이드 목표(${guideTarget.target}${guideTarget.unit})보다 훨씬 낮은 ` +
+        `${actualAfterNum}${guideTarget.unit} — 수치를 다시 확인해 주세요.`
+      );
+    }
+  }
+  // state만 있을 때: 위험→정상 한번에 + 온도 0
+  if (!sensorType && beforeNum === 3 && afterNum === 0) {
+    suspiciousReasons.push("위험(3) → 정상(0) 한 번에 전환은 드문 경우입니다.");
+  }
+  const needsConfirm = suspiciousReasons.length > 0 && !suspicious;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -962,6 +1053,40 @@ function AddActionModal({
               </select>
             </div>
           </div>
+          {/* 실제 센서 수치 입력 */}
+          <div>
+            <label className={labelCls}>센서 유형 (가이드 비교용)</label>
+            <select value={sensorType} onChange={(e) => { setSensorType(e.target.value); setActualBefore(""); setActualAfter(""); }} className={inputCls}>
+              <option value="">선택 안 함</option>
+              {sensorOptions.map((k) => (
+                <option key={k} value={k}>{GUIDE_TARGETS[devType][k].label}</option>
+              ))}
+            </select>
+          </div>
+          {sensorType && guideTarget && (
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-700 px-4 py-2.5">
+              <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-2 flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">info</span>
+                {devType} 가이드 목표: <span className="font-bold ml-1">{guideTarget.target}{guideTarget.unit} 이하</span>
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>조치 전 실제 수치</label>
+                  <div className="flex items-center gap-1">
+                    <input type="number" step="0.1" value={actualBefore} onChange={(e) => { setActualBefore(e.target.value); setSuspicious(false); }} placeholder="예: 65" className={inputCls} />
+                    <span className="text-xs text-gray-400 shrink-0">{guideTarget.unit}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>조치 후 실제 수치</label>
+                  <div className="flex items-center gap-1">
+                    <input type="number" step="0.1" value={actualAfter} onChange={(e) => { setActualAfter(e.target.value); setSuspicious(false); }} placeholder={`목표: ${guideTarget.target}`} className={inputCls} />
+                    <span className="text-xs text-gray-400 shrink-0">{guideTarget.unit}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>담당자</label>
@@ -982,11 +1107,57 @@ function AddActionModal({
               <input type="datetime-local" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} className={inputCls} />
             </div>
           </div>
+          {/* 일반 가이드 경고 (노란색) */}
+          {guideWarnings.length > 0 && suspiciousReasons.length === 0 && (
+            <div className="rounded-lg border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 space-y-1">
+              <p className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1 mb-1">
+                <span className="material-symbols-outlined text-sm">warning</span>
+                가이드 기준과 차이가 있습니다 — 다시 한번 확인해 주세요
+              </p>
+              {guideWarnings.map((w, i) => (
+                <p key={i} className="text-xs text-amber-700 dark:text-amber-300">• {w}</p>
+              ))}
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 pt-1 border-t border-amber-200 dark:border-amber-700">
+                실제 수치와 다를 수 있습니다. 조치 내용을 재확인한 후 등록해 주세요.
+              </p>
+            </div>
+          )}
+
+          {/* 물리적 의심 수치 경고 (주황색 + 확인 버튼) */}
+          {suspiciousReasons.length > 0 && (
+            <div className="rounded-lg border border-orange-400 dark:border-orange-500 bg-orange-50 dark:bg-orange-900/20 px-4 py-3 space-y-2">
+              <p className="text-sm font-bold text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                <span className="material-symbols-outlined text-base">gpp_maybe</span>
+                수치를 제대로 확인하셨나요?
+              </p>
+              {suspiciousReasons.map((r, i) => (
+                <p key={i} className="text-xs text-orange-700 dark:text-orange-300">• {r}</p>
+              ))}
+              <p className="text-xs text-orange-600 dark:text-orange-400 border-t border-orange-200 dark:border-orange-700 pt-2">
+                실제 수치와 다를 수 있습니다. 장비를 직접 재확인한 후 등록해 주세요.
+              </p>
+              {!suspicious ? (
+                <button
+                  type="button"
+                  onClick={() => setSuspicious(true)}
+                  className="mt-1 w-full py-2 rounded-lg text-sm font-semibold border-2 border-orange-400 dark:border-orange-500 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors"
+                >
+                  수치를 직접 확인했습니다 — 그대로 등록
+                </button>
+              ) : (
+                <p className="text-xs font-semibold text-green-700 dark:text-green-400 flex items-center gap-1 pt-1">
+                  <span className="material-symbols-outlined text-sm">check_circle</span>
+                  확인 완료 — 저장 버튼을 눌러 등록하세요
+                </p>
+              )}
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
         </div>
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-600 flex justify-end gap-2">
           <button type="button" onClick={onClose} disabled={saving} className="px-4 py-2 rounded-lg font-medium border border-gray-200 dark:border-gray-600 text-[#111418] dark:text-[#ededed] hover:bg-gray-50 dark:hover:bg-[#1e293b] transition-colors text-sm">취소</button>
-          <button type="button" onClick={handleSave} disabled={!canSave || saving} className="px-4 py-2 rounded-lg font-medium bg-[#137fec] text-white hover:bg-[#0d6bd6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
+          <button type="button" onClick={handleSave} disabled={!canSave || saving || needsConfirm} className="px-4 py-2 rounded-lg font-medium bg-[#137fec] text-white hover:bg-[#0d6bd6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
             {saving ? "저장 중…" : "저장"}
           </button>
         </div>
@@ -997,25 +1168,61 @@ function AddActionModal({
 
 function FourMChangeSection() {
   const [logs, setLogs] = useState<FourMChangeLog[]>([]);
-  const [type, setType] = useState<FourMChangeType>("Man");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [type, setType] = useState<FourMChangeType>("작업자변경");
   const [content, setContent] = useState("");
-  const today = new Date().toISOString().slice(0, 10);
 
-  const addLog = () => {
-    if (!content.trim()) return;
-    setLogs((prev) => [
-      { id: `4m-${Date.now()}`, time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }), type, content: content.trim() },
-      ...prev,
-    ]);
-    setContent("");
+  const typeLabel = (v: string) => FOUR_M_CHANGE_TYPES.find((t) => t.value === v)?.label ?? v;
+
+  // 오늘 데이터 fetch
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${API_URL}/four-m-changes`)
+      .then((r) => r.json())
+      .then((data) => setLogs(Array.isArray(data?.four_m_changes) ? data.four_m_changes : []))
+      .catch(() => setLogs([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const addLog = async () => {
+    if (!content.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/four-m-changes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ change_type: type, content: content.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const newLog: FourMChangeLog = {
+        id: data.id,
+        change_type: type,
+        content: content.trim(),
+        created_at: new Date().toLocaleString("ko-KR"),
+      };
+      setLogs((prev) => [newLog, ...prev]);
+      setContent("");
+    } catch {
+      alert("등록에 실패했습니다. 백엔드 연결을 확인하세요.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const typeLabel = (v: FourMChangeType) => FOUR_M_CHANGE_TYPES.find((t) => t.value === v)?.label ?? v;
-  const removeLog = (id: string) => setLogs((prev) => prev.filter((l) => l.id !== id));
+  const removeLog = async (id: number) => {
+    try {
+      await fetch(`${API_URL}/four-m-changes/${id}`, { method: "DELETE" });
+      setLogs((prev) => prev.filter((l) => l.id !== id));
+    } catch {
+      alert("삭제에 실패했습니다.");
+    }
+  };
 
   return (
     <SectionCard title="금일 공정 변경점" icon="swap_horiz">
-      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">작업자 교체, 자재 변경, 방법/설비 변경 등 금일 변경 사항을 등록하고 조회합니다.</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">작업자 변경, 자재 변경, 방법 변경, 설비/기계 변경 사항을 등록합니다. 금일 등록 내역만 표시됩니다.</p>
       <div className="flex flex-wrap gap-3 mb-4">
         <select
           value={type}
@@ -1037,41 +1244,43 @@ function FourMChangeSection() {
         <button
           type="button"
           onClick={addLog}
-          disabled={!content.trim()}
+          disabled={!content.trim() || saving}
           className="px-4 py-2 rounded-lg font-medium bg-[#137fec] text-white hover:bg-[#0d6bd6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm inline-flex items-center gap-2"
         >
           <span className="material-symbols-outlined text-lg">add</span>
-          등록
+          {saving ? "등록 중…" : "등록"}
         </button>
       </div>
       <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#1e293b]">
-              <th className="text-left py-2 px-3">시간</th>
-              <th className="text-left py-2 px-3">유형</th>
-              <th className="text-left py-2 px-3">내용</th>
-              <th className="text-right py-2 px-3 w-20" aria-label="삭제" />
+            <tr className="border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-[#14213d]">
+              <th className="text-left py-2 px-3 w-40">시간</th>
+              <th className="text-left py-2 px-3 w-32">유형</th>
+              <th className="text-left py-2 px-3">변경 내역</th>
+              <th className="text-right py-2 px-3 w-12" />
             </tr>
           </thead>
           <tbody>
-            {logs.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="py-6 px-3 text-center text-gray-500 dark:text-gray-400">
-                  금일 등록된 공정 변경점이 없습니다.
-                </td>
-              </tr>
+            {loading ? (
+              <tr><td colSpan={4} className="py-6 px-3 text-center text-gray-500 dark:text-gray-400">불러오는 중…</td></tr>
+            ) : logs.length === 0 ? (
+              <tr><td colSpan={4} className="py-6 px-3 text-center text-gray-500 dark:text-gray-400">금일 등록된 공정 변경점이 없습니다.</td></tr>
             ) : (
               logs.map((log) => (
-                <tr key={log.id} className="border-b border-gray-100 dark:border-gray-600">
-                  <td className="py-2 px-3">{log.time}</td>
-                  <td className="py-2 px-3">{typeLabel(log.type)}</td>
+                <tr key={log.id} className="border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#1e293b]">
+                  <td className="py-2 px-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{log.created_at}</td>
+                  <td className="py-2 px-3">
+                    <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                      {typeLabel(log.change_type)}
+                    </span>
+                  </td>
                   <td className="py-2 px-3">{log.content}</td>
                   <td className="py-2 px-3 text-right">
                     <button
                       type="button"
                       onClick={() => removeLog(log.id)}
-                      className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                       aria-label="삭제"
                     >
                       <span className="material-symbols-outlined text-lg">delete</span>
@@ -1157,12 +1366,19 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
 
   const filteredLogs = recentLogs.filter((log) => matchEquipmentType(log.equipment, log.type, equipmentType));
   const filteredAlarms = recentAlarms.filter((a) => matchEquipmentType(a.equipment, a.type, equipmentType));
-  const visibleLogs = filteredLogs.slice(0, visibleLogCount);
+  // 최신이 아래, 위로 올릴수록 과거 — slice 후 reverse
+  const visibleLogs = filteredLogs.slice(0, visibleLogCount).reverse();
   const canLoadMoreLogs = visibleLogCount < filteredLogs.length;
+
+  const logContainerRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeightRef = useRef<number>(0);
+
   const handleLogScroll = (event: UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     if (!canLoadMoreLogs) return;
-    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 16) {
+    // 위로 스크롤해서 상단 근처에 도달하면 과거 로그 추가 로드
+    if (target.scrollTop <= 40) {
+      prevScrollHeightRef.current = target.scrollHeight;
       setVisibleLogCount((prev) => Math.min(prev + LOG_BATCH_SIZE, filteredLogs.length));
     }
   };
@@ -1216,6 +1432,22 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
   useEffect(() => {
     setVisibleLogCount(Math.min(LOG_BATCH_SIZE, filteredLogs.length));
   }, [filteredLogs.length, equipmentType]);
+
+  // 로그 추가 로드 후 스크롤 위치 복원 (위에서 내용이 추가되므로 scrollHeight 차만큼 보정)
+  useEffect(() => {
+    const container = logContainerRef.current;
+    if (!container || prevScrollHeightRef.current === 0) return;
+    const diff = container.scrollHeight - prevScrollHeightRef.current;
+    container.scrollTop = diff;
+    prevScrollHeightRef.current = 0;
+  }, [visibleLogCount]);
+
+  // 초기 로드 완료 시 맨 아래(최신)로 스크롤
+  useEffect(() => {
+    if (!logsLoading && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logsLoading]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 10000);
@@ -1293,6 +1525,20 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
     return () => { cancelled = true; controller.abort(); };
   }, [tab, equipmentType]);
 
+  // ── 조치 가이드 ──
+  const [guideData, setGuideData] = useState<Record<string, any> | null>(null);
+  const [guideLoading, setGuideLoading] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "improvement") return;
+    setGuideLoading(true);
+    fetch(`${API_URL}/maintenance-guide?device_type=${equipmentType}`)
+      .then((r) => r.json())
+      .then((data) => setGuideData(data.guide ?? null))
+      .catch(() => setGuideData(null))
+      .finally(() => setGuideLoading(false));
+  }, [tab, equipmentType]);
+
   const tabContentClass = "w-full min-h-full flex flex-col items-stretch space-y-6";
 
   if (tab === "monitoring") {
@@ -1305,11 +1551,21 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
           </div>
         </SectionCard>
         <SectionCard title="최근 장비 로그" icon="list">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-            최신 {Math.min(filteredLogs.length, LOG_BATCH_SIZE)}건을 우선 보여주며, 스크롤하여 최대 {filteredLogs.length}건까지 확인할 수 있습니다.
-          </p>
+          {/* 상단: 과거 로그 더 보기 표시 */}
+          {canLoadMoreLogs && (
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {visibleLogs.length} / {filteredLogs.length}건 표시 중
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                <span className="material-symbols-outlined text-base leading-none">arrow_upward</span>
+                위로 스크롤하면 과거 로그 {filteredLogs.length - visibleLogs.length}건 더 보기
+              </span>
+            </div>
+          )}
           <div
-            className="max-h-[260px] overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-600"
+            ref={logContainerRef}
+            className="h-[200px] overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-600"
             onScroll={handleLogScroll}
           >
             <table className="w-full text-sm">
@@ -1362,9 +1618,9 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
               </tbody>
             </table>
           </div>
-          {canLoadMoreLogs && (
-            <div className="mt-2 text-xs text-right text-gray-500 dark:text-gray-400">
-              스크롤하여 과거 로그({visibleLogs.length}/{filteredLogs.length}) 더 보기
+          {!canLoadMoreLogs && filteredLogs.length > 0 && (
+            <div className="mt-2 text-xs text-center text-gray-400 dark:text-gray-500">
+              전체 {filteredLogs.length}건 모두 표시됨 · 최신 순 ↓
             </div>
           )}
         </SectionCard>
@@ -1746,6 +2002,129 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
             equipmentType={equipmentType}
             onAdd={(log) => { setPreventiveLogs((prev) => [log, ...prev]); setShowPreventiveModal(false); }}
           />
+        </SectionCard>
+
+        {/* ────── 조치 가이드 ────── */}
+        <SectionCard title={`${equipmentType} 조치 가이드`} icon="menu_book">
+          {guideLoading ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400 py-4">가이드를 불러오는 중…</p>
+          ) : !guideData ? (
+            <p className="text-sm text-red-500 py-4">가이드를 불러오지 못했습니다. 백엔드 연결을 확인하세요.</p>
+          ) : (
+            <div className="space-y-5">
+              {Object.entries(guideData).map(([sensorKey, sensorVal]: [string, any]) => {
+                const isAGV = equipmentType === "AGV";
+                const state2: any[] = sensorVal.state2 ?? [];
+                const state3: any[] = sensorVal.state3 ?? [];
+                const actions: any[] = sensorVal.actions ?? [];
+                const target: Record<string, any> = sensorVal.target ?? {};
+
+                const ActionRow = ({ item }: { item: any }) => (
+                  <tr className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <td className="py-2 pr-3 text-sm font-medium text-gray-800 dark:text-gray-200 align-top w-40">{item.action}</td>
+                    <td className="py-2 pr-3 text-xs text-gray-500 dark:text-gray-400 align-top">{item.detail}</td>
+                    <td className="py-2 pr-3 text-xs text-center align-top whitespace-nowrap">
+                      {item.before != null && item.after != null ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="font-semibold text-red-500">{item.before}</span>
+                          <span className="material-symbols-outlined text-sm text-gray-400">arrow_forward</span>
+                          <span className="font-semibold text-green-600 dark:text-green-400">{item.after}</span>
+                        </span>
+                      ) : item.before != null ? (
+                        <span className="text-red-500 font-semibold">{item.before} → 즉시차단</span>
+                      ) : (
+                        <span className="text-gray-400">진단</span>
+                      )}
+                    </td>
+                    <td className="py-2 text-xs text-center text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap align-top">{item.duration}</td>
+                  </tr>
+                );
+
+                return (
+                  <div key={sensorKey} className="rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden">
+                    {/* 센서 헤더 */}
+                    <div className="px-4 py-2.5 bg-gray-50 dark:bg-[#14213d] flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base text-blue-500">sensors</span>
+                      <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">{sensorVal.label}</span>
+                    </div>
+
+                    {isAGV ? (
+                      <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {/* State 2 */}
+                        {state2.length > 0 && (
+                          <div className="px-4 py-3">
+                            <p className="text-xs font-bold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-sm">warning</span>
+                              State 2 — 경고 단계 조치
+                            </p>
+                            <table className="w-full">
+                              <thead>
+                                <tr className="text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
+                                  <th className="text-left pb-1 pr-3 w-40">조치 방법</th>
+                                  <th className="text-left pb-1 pr-3">상세</th>
+                                  <th className="text-center pb-1 pr-3">수치 변화</th>
+                                  <th className="text-center pb-1">소요시간</th>
+                                </tr>
+                              </thead>
+                              <tbody>{state2.map((item: any, i: number) => <ActionRow key={i} item={item} />)}</tbody>
+                            </table>
+                          </div>
+                        )}
+                        {/* State 3 */}
+                        {state3.length > 0 && (
+                          <div className="px-4 py-3">
+                            <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-sm">dangerous</span>
+                              State 3 — 위험 단계 즉시 조치
+                            </p>
+                            <table className="w-full">
+                              <thead>
+                                <tr className="text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
+                                  <th className="text-left pb-1 pr-3 w-40">조치 방법</th>
+                                  <th className="text-left pb-1 pr-3">상세</th>
+                                  <th className="text-center pb-1 pr-3">수치 변화</th>
+                                  <th className="text-center pb-1">소요시간</th>
+                                </tr>
+                              </thead>
+                              <tbody>{state3.map((item: any, i: number) => <ActionRow key={i} item={item} />)}</tbody>
+                            </table>
+                          </div>
+                        )}
+                        {/* 목표 수치 */}
+                        {Object.keys(target).length > 0 && (
+                          <div className="px-4 py-2.5 bg-green-50 dark:bg-green-900/10 flex flex-wrap gap-3">
+                            <span className="text-xs font-bold text-green-700 dark:text-green-400 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-sm">verified</span>개선 목표
+                            </span>
+                            {Object.entries(target).map(([k, v]: [string, any]) => (
+                              <span key={k} className="text-xs text-green-700 dark:text-green-400">
+                                {k}: <span className="font-semibold">{v.before} → {v.after}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // OHT: 단순 actions 표
+                      <div className="px-4 py-3">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
+                              <th className="text-left pb-1 pr-3 w-48">조치 방법</th>
+                              <th className="text-left pb-1 pr-3">상세</th>
+                              <th className="text-center pb-1 pr-3">수치 변화</th>
+                              <th className="text-center pb-1">소요시간</th>
+                            </tr>
+                          </thead>
+                          <tbody>{actions.map((item: any, i: number) => <ActionRow key={i} item={item} />)}</tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </SectionCard>
 
         {/* ────── 설비별 정비 이력 타임라인 (DB 기반) ────── */}
