@@ -1397,7 +1397,7 @@ function FdcTabContent({ tab, alarmId, equipmentType = "AGV", onGoToImprovement,
       })
       .then((data) => {
         if (cancelled) return;
-        const normalizedLogs: RecentLog[] = (Array.isArray(data?.logs) ? data.logs : []).map((log, idx) => {
+        const normalizedLogs: RecentLog[] = (Array.isArray(data?.logs) ? data.logs : []).map((log: any, idx: number) => {
           const normalizedType = log?.type === "OHT" ? "OHT" : "AGV";
           return {
             id: log?.id ?? `${normalizedType}-${log?.equipment ?? ""}-${idx}`,
