@@ -119,7 +119,7 @@ const TABLEAU_ALARM_URLS = {
 };
 /** 예측/진단 탭 — 핵심 피처 기여도는 태블로에서 보기 위해 비워둠 */
 const TABLEAU_FEATURE_IMPORTANCE_URL = process.env.NEXT_PUBLIC_TABLEAU_FEATURE_IMPORTANCE_URL ?? "";
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+const API_URL = "/api/backend";
 const LOG_BATCH_SIZE = 5;
 const MAX_LOG_ROWS = 50;
 const MAX_ALARM_ROWS = 20;

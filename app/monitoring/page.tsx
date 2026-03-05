@@ -32,7 +32,7 @@ interface Stats {
   state_3: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+const API_URL = "/api/backend";
 
 export default function MonitoringPage() {
   const [equipmentType, setEquipmentType] = useState<"AGV" | "OHT">("AGV");
