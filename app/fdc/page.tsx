@@ -265,7 +265,7 @@ function AlarmDetailModal({
             <h3 className="text-sm font-bold text-[#111418] dark:text-[#ededed] mb-2">현재 알람</h3>
             <div className="rounded-lg border border-gray-200 dark:border-gray-600 p-3 bg-gray-50 dark:bg-[#1e293b] text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <span className="text-gray-500 dark:text-gray-400">발생시간</span><span>{alarm.time}</span>
+                <span className="text-gray-500 dark:text-gray-400">발생시간</span><span>{alarm.datetime}</span>
                 <span className="text-gray-500 dark:text-gray-400">장비</span><span>{alarm.equipment}</span>
                 <span className="text-gray-500 dark:text-gray-400">등급</span><span>{alarm.level}</span>
                 <span className="text-gray-500 dark:text-gray-400">내용</span><span>{alarm.message}</span>
